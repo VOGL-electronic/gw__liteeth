@@ -222,13 +222,13 @@ class PCSRX(LiteXModule):
                 If(~self.decoder.k & ~self.decoder.invalid,
                     # Check for Configuration Word.
                     If((self.decoder.d == D(21, 5)) | # /C1/.
-                    (self.decoder.d == D( 2, 2)),  # /C2/.
+                       (self.decoder.d == D( 2, 2)),  # /C2/.
                         self.seen_valid_ci.eq(1),
                         NextState("CONFIG-REG")
                     ),
                     # Check for Idle Word.
                     If((self.decoder.d == D( 5, 6)) | # /I1/.
-                    (self.decoder.d == D(16, 2)),  # /I2/.
+                       (self.decoder.d == D(16, 2)),  # /I2/.
                         self.seen_valid_ci.eq(1),
                         NextState("START")
                     )
@@ -276,9 +276,7 @@ class PCSRX(LiteXModule):
             )
         )
         fsm.act("ERROR",
-            If(self.input_valid,
-                NextState("START")
-            )
+            NextState("START")
         )
 
 # PCS ----------------------------------------------------------------------------------------------
