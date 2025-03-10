@@ -33,6 +33,8 @@ class SimQuadDeser(LiteXModule):
         self.data_out = Signal(10)
         self.data_out_valid = Signal()
 
+        self.end = Signal()
+
         self.rx = rx = EfinixSerdesDiffRxClockRecovery(
             Signal(4),
             Signal(4),
@@ -85,6 +87,7 @@ class SimQuadDeser(LiteXModule):
 
     def do_simulation(self, dut):
         """Handles simulation logic dynamically."""
+        end_counter = 0
         while True:
             yield self.transmitting.eq(self._transmitting)
             if (yield self.enable) == 0:
@@ -150,6 +153,13 @@ class SimQuadDeser(LiteXModule):
                 self._transmitting = not done
                 print(len(self._bitstream), self._chunk_idx * 40, self._transmitting)
                 yield self.last_chunk.eq(done)
+            
+            if (yield self.end & ~self.enable & (self.data_out ==0)):
+                end_counter += 1
+                if end_counter > 10:
+                    break
+            else:
+                end_counter = 0
 
             yield  # Proceed to the next simulation step
 
@@ -201,6 +211,8 @@ class TestCoreDeser(unittest.TestCase):
                     print("Final chunk transmitted with new stretch factor!")
                     yield dut.enable.eq(0)
                     break
+            
+            yield dut.end.eq(1)
 
         # Instantiate and run
         dut = SimQuadDeser(input_bits=200, clock_stretch=1.00)
