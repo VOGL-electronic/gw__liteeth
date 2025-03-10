@@ -166,6 +166,66 @@ class EfinixSerdesDiffRx(LiteXModule):
         platform.toolchain.excluded_ios.append(platform.get_pin(rx_p))
         platform.toolchain.excluded_ios.append(platform.get_pin(rx_n))
 
+class Decoder8b10bChecker(LiteXModule):
+    def __init__(self, data_in, valid):
+
+        ones_1 = Signal(4, reset_less=True)
+        self.comb += ones_1.eq(Reduce("ADD", [data_in[i] for i in range(10)]))
+        invalid_1 = (ones_1 != 4) & (ones_1 != 5) & (ones_1 != 6)
+
+        ones_2 = Signal(4, reset_less=True)
+        self.comb += ones_2.eq(Reduce("ADD", [data_in[i] for i in range(10,20)]))
+        invalid_2 = (ones_2 != 4) & (ones_2 != 5) & (ones_2 != 6)
+
+        ones_3 = Signal(5, reset_less=True)
+        self.comb += ones_3.eq(ones_1 + ones_2)
+        invalid_3 = (ones_3 != 9) & (ones_3 != 10) & (ones_3 != 11)
+
+        input_msb_first = Signal(10)
+        for i in range(10):
+            self.comb += input_msb_first[i].eq(data_in[19-i])
+
+        code6b = input_msb_first[4:]
+
+        invalid_4 = (code6b != 0b001111) & (code6b != 0b110000)
+        
+        self.comb += valid.eq(~(invalid_1 | invalid_2 | invalid_3 | invalid_4))
+
+class EfinixAligner(LiteXModule):
+    def __init__(self, align):
+        self.data = data = Signal(30)
+        self.pos = pos = Signal(max=10)
+
+        valid_8b10b = Signal(10)
+
+        for i in range(10):
+            checker = Decoder8b10bChecker(data[i:20+i], valid_8b10b[i])
+            self.submodules += checker
+
+            self.sync += [
+                If(align & valid_8b10b[i],
+                    pos.eq(i),
+                )
+            ]
+
+class Decoder8b10bIdleChecker(LiteXModule):
+    def __init__(self, data_in):
+
+        self.is_i2 = is_i2 = Signal()
+
+        self.decoder1= decoder1 = DecoderComb(lsb_first=True)
+        self.decoder2= decoder2 = DecoderComb(lsb_first=True)
+
+        self.comb += [
+            decoder1.input.eq(data_in[:10]),
+            decoder2.input.eq(data_in[10:20]),
+        ]
+
+        first_ok = decoder1.k & ~decoder1.invalid & (decoder1.d == K(28, 5))
+        second_ok = ~decoder2.k & ~decoder2.invalid & (decoder2.d == D(16, 2))
+        
+        self.comb += is_i2.eq(first_ok & second_ok)
+
 class EfinixSerdesDiffRxDummy(LiteXModule):
     def __init__(self, data):
         self.data = Signal(10)
@@ -400,66 +460,6 @@ class EfinixSerdesClocking(LiteXModule):
         pll.create_clkout(self.cd_eth_trx_fast,        fast_clk_freq, phase=90)
 
         self.comb += pll.reset.eq(ResetSignal("sys"))
-
-class Decoder8b10bChecker(LiteXModule):
-    def __init__(self, data_in, valid):
-
-        ones_1 = Signal(4, reset_less=True)
-        self.comb += ones_1.eq(Reduce("ADD", [data_in[i] for i in range(10)]))
-        invalid_1 = (ones_1 != 4) & (ones_1 != 5) & (ones_1 != 6)
-
-        ones_2 = Signal(4, reset_less=True)
-        self.comb += ones_2.eq(Reduce("ADD", [data_in[i] for i in range(10,20)]))
-        invalid_2 = (ones_2 != 4) & (ones_2 != 5) & (ones_2 != 6)
-
-        ones_3 = Signal(5, reset_less=True)
-        self.comb += ones_3.eq(ones_1 + ones_2)
-        invalid_3 = (ones_3 != 9) & (ones_3 != 10) & (ones_3 != 11)
-
-        input_msb_first = Signal(10)
-        for i in range(10):
-            self.comb += input_msb_first[i].eq(data_in[19-i])
-
-        code6b = input_msb_first[4:]
-
-        invalid_4 = (code6b != 0b001111) & (code6b != 0b110000)
-        
-        self.comb += valid.eq(~(invalid_1 | invalid_2 | invalid_3 | invalid_4))
-
-class EfinixAligner(LiteXModule):
-    def __init__(self, align):
-        self.data = data = Signal(30)
-        self.pos = pos = Signal(max=10)
-
-        valid_8b10b = Signal(10)
-
-        for i in range(10):
-            checker = Decoder8b10bChecker(data[i:20+i], valid_8b10b[i])
-            self.submodules += checker
-
-            self.sync += [
-                If(align & valid_8b10b[i],
-                    pos.eq(i),
-                )
-            ]
-
-class Decoder8b10bIdleChecker(LiteXModule):
-    def __init__(self, data_in):
-
-        self.is_i2 = is_i2 = Signal()
-
-        self.decoder1= decoder1 = DecoderComb(lsb_first=True)
-        self.decoder2= decoder2 = DecoderComb(lsb_first=True)
-
-        self.comb += [
-            decoder1.input.eq(data_in[:10]),
-            decoder2.input.eq(data_in[10:20]),
-        ]
-
-        first_ok = decoder1.k & ~decoder1.invalid & (decoder1.d == K(28, 5))
-        second_ok = ~decoder2.k & ~decoder2.invalid & (decoder2.d == D(16, 2))
-        
-        self.comb += is_i2.eq(first_ok & second_ok)
 
 from liteeth.common import *
 from liteeth.phy.pcs_1000basex import *
