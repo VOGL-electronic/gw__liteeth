@@ -59,11 +59,11 @@ class SimQuadDeser(LiteXModule):
 
     def _to_bitlist(self, value, width):
         """Convert integer `value` into a list of bits [MSB, ..., LSB] of length `width`."""
-        return [(value >> i) & 1 for i in reversed(range(width))]
+        return [(value >> i) & 1 for i in range(width)]
 
     def _from_bitlist(self, bits):
         """Convert a list of bits [MSB, ..., LSB] into an integer."""
-        return sum(b << i for i, b in enumerate(reversed(bits)))
+        return sum(b << i for i, b in enumerate(bits))
 
     def _arrs_from_bitlist(self, bits):
         """
