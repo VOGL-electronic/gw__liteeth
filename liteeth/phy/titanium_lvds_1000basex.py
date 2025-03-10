@@ -26,7 +26,7 @@ class EfinixSerdesDiffTx(LiteXModule):
         _oe   = platform.add_iface_io(io_name + "_oe")
         _rst  = platform.add_iface_io(io_name + "_rst")
 
-        assert platform.family in ["Titanium"]
+        assert platform.family in ["Titanium", "Topaz"]
         # _p has _P_ and _n has _N_ followed by an optional function
         # lvds block needs _PN_
         pad_split = io_pad.split('_')
@@ -104,7 +104,7 @@ class EfinixSerdesDiffRx(LiteXModule):
                         dpa_debug.fields.dpa_lock.eq(dpa_lock),
                     ]
 
-        assert platform.family in ["Titanium"]
+        assert platform.family in ["Titanium", "Topaz"]
         # _p has _P_ and _n has _N_ followed by an optional function
         # lvds block needs _PN_
         pad_split = io_pad.split('_')
@@ -439,7 +439,7 @@ class EfinixSerdesClocking(LiteXModule):
         fast_clk_freq    = 625e6
         clk_freq = fast_clk_freq / 5
 
-        assert platform.family in ["Titanium"]
+        assert platform.family in ["Titanium", "Topaz"]
 
         # Slave Mode.
         # -----------
